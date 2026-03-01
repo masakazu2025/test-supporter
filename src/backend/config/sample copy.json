@@ -1,0 +1,41 @@
+{
+  "archiver_path": "C:\\Tools\\myarchiver.exe",
+  "sync_targets": [
+    {
+      "type": "entries",
+      "action": "copy",
+      "src_dir": "C:/TestApp/entries",
+      "pattern": ".*\\.gz",
+      "dst_dir": "entries/{ipaddress}/{yyyymmdd}",
+      "rename": null,
+      "watch": "realtime",
+      "post_process": {
+        "decompress": "gz"
+      }
+    },
+    {
+      "type": "screenshots",
+      "action": "copy",
+      "src_dir": "C:/TestApp/screenshots",
+      "pattern": ".*\\.png",
+      "dst_dir": "screenshots/{ipaddress}/{yyyymmdd}",
+      "rename": "{ipaddress12}_{timestamp}.{ext}",
+      "watch": "realtime",
+      "post_process": {
+        "decompress": null
+      }
+    },
+    {
+        "type": "screenshots_weekly_archive",
+        "action": "move",
+        "src_dir": "C:/TestApp/screenshots",
+        "pattern": ".*\\.png",
+        "dst_dir": "\\\\{ipaddress}\\C$\\TestApp\\screenshots\\{yyyymmdd}",
+        "rename": "{ipaddress12}_{timestamp}.{ext}",
+        "schedule": "Friday 19:00",
+        "post_process": {
+            "decompress": null
+        }
+    }
+  ]
+}
