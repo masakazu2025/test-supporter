@@ -7,18 +7,18 @@
 ```json
 {
   "archiver_path": "C:\\Tools\\myarchiver.exe",
-  "sync_targets": [ ... ]
+  "collection_targets": [ ... ]
 }
 ```
 
 | フィールド | 必須 | 型 | 説明 |
 |-----------|------|-----|------|
 | `archiver_path` | ○ | string | エントリ解凍用の専用アーカイバのパス |
-| `sync_targets` | ○ | array | 採取ターゲット定義の配列（1件以上） |
+| `collection_targets` | ○ | array | 採取ターゲット定義の配列（1件以上） |
 
 ---
 
-## SyncTarget
+## CollectionTarget
 
 ```json
 {
@@ -122,7 +122,7 @@ C:\TestApp\entries  +  terminal=192.168.1.10
 ```json
 {
   "archiver_path": "C:\\Tools\\myarchiver.exe",
-  "sync_targets": [
+  "collection_targets": [
     {
       "type": "entries",
       "action": "copy",

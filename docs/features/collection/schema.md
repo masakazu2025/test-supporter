@@ -9,7 +9,7 @@
 class CopyJob:
     terminal: str    # 端末IP（例: "192.168.1.10"）
     src_file: Path   # 採取ソースが解決済みのUNCパス
-    target: SyncTarget
+    target: CollectionTarget
 ```
 
 - `status` フィールドなし（ファイルシステムが状態を管理する）
@@ -44,7 +44,7 @@ metadata = {
 
 ## fields 定義
 
-`SyncTarget.fields` に記述する。ファイルから情報を抽出するルールを定義する。
+`CollectionTarget.fields` に記述する。ファイルから情報を抽出するルールを定義する。
 
 ```json
 [

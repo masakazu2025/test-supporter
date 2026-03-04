@@ -6,7 +6,7 @@
 graph TB
     subgraph Sources["採取ソース"]
         AW["AutoWatcher<br>（自動・NORMAL優先度）"]
-        MA["手動採取API<br>（HIGH優先度）"]
+        SL["Selector<br>（手動採取・HIGH優先度）"]
     end
 
     subgraph JobManager["JobManager（端末ごと）"]
@@ -31,7 +31,8 @@ graph TB
 
     AW -- "enqueue(append)" --> QA
     AW -- "enqueue(append)" --> QB
-    MA -- "enqueue(appendleft)" --> QA
+    SL -. "①DB検索" .-> DB
+    SL -- "②ミス時: enqueue(appendleft)" --> QA
     QA --> WA
     QB --> WB
     WA --> FT
@@ -79,7 +80,7 @@ sequenceDiagram
 class CopyJob:
     terminal: str    # 端末IP
     src_file: Path   # 採取ソースが解決済みのUNCパス
-    target: SyncTarget
+    target: CollectionTarget
     # statusフィールドなし（FSが状態を管理する）
 ```
 
@@ -88,35 +89,42 @@ class CopyJob:
 ### AutoWatcher（自動採取）
 
 ```
-① SyncTarget.pattern で新着ファイル一覧取得（拡張子フィルタ等）
+① CollectionTarget.pattern で新着ファイル一覧取得（拡張子フィルタ等）
 ② ローカルプールと差分計算
 ③ 新着ファイルを enqueue（priority=NORMAL → 末尾）
 ```
 
 speed優先のため、field_extractor は使わない。
 
-### 手動採取（Manual）
+### 手動採取（Selector）
 
 ```
-① UI から field値（entry_id範囲・時刻範囲など）を受け取る
-② field定義を元に検索用パターンを生成
-③ リモートから一致ファイルを取得
-④ enqueue（priority=HIGH → 先頭）
+① UI から検索条件（entry_id・日時範囲など）を受け取る
+② DBを検索（poolのmetadata）
+③ ヒット → poolのファイルパスを返却（採取不要）
+   ミス  → リモートの該当ファイルを特定 → enqueue（priority=HIGH → 先頭）
 ```
 
-field_extractor は使わない（Workerが使う）。
+- DBがpoolのインデックスとして機能する（pool=キャッシュ思想）
+- field_extractor は使わない（Workerがコピー時に使う）
 
 ## Worker の処理
 
 ```
-① atomic_copy(src_file, dst_tmp)          ← file_transfer
-② field_extractor(src_file, fields_def, terminal) → metadata
+① atomic_copy(src_file → pool/.staging/{terminal}/original.tmp)  ← file_transfer（ネットワーク操作はここだけ）
+② field_extractor(pool/.staging/{terminal}/original.tmp, fields_def, terminal) → metadata
 ③ resolver(target.dst_dir, metadata)      → dst_path
 ④ resolver(target.rename, metadata)       → dst_filename（renameある場合）
-⑤ dst_tmp を正式名にリネーム
+⑤ move(pool/.staging/original.tmp → dst_path)         ← ローカルrename（ネットワーク不要）
 ⑥ extract_archive(...)                    ← archive（type=entriesのみ）
 ⑦ DB insert(metadata)
 ```
+
+> **原則**: リモート端末へのネットワーク操作は①のコピー1回のみ。
+> mtimeはローカルコピーから読む（`shutil.copy2`でmtime保持）。
+>
+> **staging のディレクトリ構造**: `pool/.staging/{terminal}/` と端末ごとに分離する。
+> Worker は端末ごとに1スレッド（順次処理）なので、同一端末内の衝突はなく、端末間の衝突はディレクトリ分離で防ぐ。
 
 ## アトミックリネームによる完了管理
 
@@ -169,7 +177,7 @@ app/services/
   job_manager.py   - CopyJobキュー管理・端末ごとのWorkerスレッド
   copy_runner.py   - run_copy(job)：Worker実処理
   auto_watcher.py  - 自動監視（pattern→新着→enqueue）
-  selector.py      - 手動採取（UI field値→pattern→対象ファイル）
+  selector.py      - 手動採取（DB検索→ヒット返却 / ミス時→リモートenqueue）
 ```
 
 ## エラー処理方針
