@@ -4,7 +4,7 @@ import type {
   EvaluationTab,
   TestCaseDetail,
   TestCaseSummary,
-} from '../lib/domain/evaluation'
+} from '../types/evaluation'
 
 const MOCK_TESTCASES: TestCaseSummary[] = [
   { id: '1', specRef: '1-001', name: 'ログイン正常系', evidenceCount: 2, defectCount: 0 },

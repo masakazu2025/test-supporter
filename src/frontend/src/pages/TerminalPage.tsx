@@ -7,8 +7,8 @@ import type {
   CollectDateMode,
   CleanupMode,
   TerminalManagementRecord,
-} from "../lib/domain/terminal";
-import type { TerminalInfo } from "../lib/domain/settings";
+} from "../types/terminal";
+import type { TerminalInfo } from "../types/settings";
 import { TextViewer } from "../components/viewers/TextViewer";
 import { TableViewer } from "../components/viewers/TableViewer";
 import { JsonViewer } from "../components/viewers/JsonViewer";

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { ProfileDetail, ProfileSummary } from '../lib/domain/settings'
+import type { ProfileDetail, ProfileSummary } from '../types/settings'
 
 const MOCK_PROFILES: ProfileSummary[] = [
   { id: '1', name: '案件A 1次試験' },
