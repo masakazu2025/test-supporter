@@ -3,16 +3,40 @@
 ## 概要
 
 ウォーターフォール開発の結合テスト・総合テスト業務を効率化するツール。
-リモート端末上のテスト成果物を採取・閲覧・仕訳する。
+リモート端末上のテスト成果物を採取・閲覧・評価する。
 
-## 主要機能
+## UI 領域の構成
 
-| 機能 | 概要 |
+UIは3つの領域に分かれる。
+
+| 領域 | 概要 |
 |------|------|
-| **採取** | リモート端末からファイル・SS・ログをローカルプールに取得する |
-| **閲覧** | 採取データの表示・フォーマット。リモート直接閲覧も可能 |
-| **仕訳** | テスト仕様書と紐づけてフォルダ分けし再保存する |
-| **設定** | 顧客プロファイルごとの接続先・仕様書などを管理する |
+| **設定** | 顧客プロファイル・端末マスタの管理 |
+| **端末** | 採取・閲覧・検索（エントリ/画像/ログ） |
+| **評価** | テストケースへのエビデンス紐付け・不具合管理 |
+
+## 概念モデル
+
+```
+【設定】
+  顧客プロファイル
+    └── 端末マスタ（IP・接続設定・採取設定など）
+
+【端末】
+  検索
+    └── エントリ
+  閲覧
+    └── エントリ / 画像 / ログ（各独立した画面）
+  採取
+    ├── 自動採取 → プール
+    └── 指定採取 → プール
+
+【評価】
+  テストケース（テスト仕様書と紐付け）
+    └── エビデンス → ファイル取得API（透過）
+  不具合（テストケースに任意紐付け、または単独起票）
+    └── 資料 → ファイル取得API（透過）
+```
 
 ## システム構成
 
@@ -24,47 +48,53 @@ graph TB
     end
 
     subgraph App["test-supporter"]
-        subgraph Collection["採取"]
-            AW["AutoWatcher\n（自動）"]
+        subgraph TerminalArea["端末"]
+            AW["AutoWatcher\n（自動採取）"]
             MA["手動採取API"]
             JM["JobManager\n（キュー・Worker）"]
+            Search["検索"]
+            View["閲覧"]
         end
 
         Pool[("ローカルプール\n（共通キャッシュ）")]
+        FR["ファイル解決レイヤー"]
 
-        Viewing["閲覧"]
-        Sorting["仕訳"]
-        Incident["不具合採取"]
+        subgraph EvalArea["評価"]
+            TC["テストケース"]
+            Defect["不具合"]
+        end
     end
 
-    T1 -- "UNC (C$)" --> Collection
-    T2 -- "UNC (C$)" --> Collection
+    T1 -- "UNC (C$)" --> JM
+    T2 -- "UNC (C$)" --> JM
     AW --> JM
     MA --> JM
     JM --> Pool
-    Pool --> Viewing
-    Pool --> Sorting
-    Pool --> Incident
-    T1 -. "フォールバック" .-> Sorting
-    T1 -. "フォールバック" .-> Incident
+    Pool --> Search
+    Pool --> View
+    Pool --> FR
+    T1 -. "フォールバック" .-> FR
+    FR --> TC
+    FR --> Defect
 ```
 
-## プール＝キャッシュ思想
+## ファイル解決レイヤー
 
-```mermaid
-graph LR
-    Remote["リモート端末"]
-    Pool[("ローカルプール")]
-    Features["仕訳 / 閲覧 / 不具合採取"]
+エビデンス・資料のファイル取得はバックエンドが透過的に解決する。
+フロントエンドは「ファイルをください」と要求するだけ。
 
-    Remote -- "採取（自動 or 手動）" --> Pool
-    Pool -- "優先して参照" --> Features
-    Remote -. "プールに不足があればフォールバック" .-> Features
+```
+ファイル取得API
+  → プールを検索
+      ヒット → プールから返す
+      ミス   → 端末直接アクセス → 返す（採取インフラ流用）
 ```
 
-- **採取**はプールに貯めるだけ
-- **仕訳・閲覧・不具合採取**はプールから読む。プールにない場合のみリモートへ
-- 不具合採取だけ例外：ログの直採取（リアルタイムキャプチャ）が追加される
+## 共用コンポーネント
+
+| コンポーネント | 用途 |
+|--------------|------|
+| エントリ検索 | 端末タブでの検索 / 評価でのエビデンス選択 |
 
 ## 技術スタック
 
@@ -80,14 +110,20 @@ graph LR
 ```
 docs/
   architecture.md              ← このファイル（全体俯瞰）
+  roadmap.md                   ← 機能別進捗
   features/
-    collection/                ← 採取機能
-      requirements.md          ← 要件
-      design.md                ← 設計
-      schema.md                ← CopyJob・metadata等
-      decisions.md             ← 設計の意思決定
-    sorting/                   ← 仕訳機能（未作成）
-    viewing/                   ← 閲覧機能（未作成）
+    collection/                ← 採取機能（端末領域）
+      requirements.md
+      design.md
+      schema.md
+      decisions.md
+      roadmap.md
+    terminal/                  ← 端末領域（閲覧・検索）
+      requirements.md
+    evaluation/                ← 評価領域（テストケース・不具合）
+      requirements.md
+    settings/                  ← 設定領域
+      requirements.md
   schema/
     config.md                  ← 設定ファイルスキーマ
     db.md                      ← DBスキーマ（未作成）
